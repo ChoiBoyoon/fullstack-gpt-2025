@@ -9,8 +9,11 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.prompts import ChatPromptTemplate
-# from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.callbacks.base import BaseCallbackHandler
 
+
+@st.cache_resource(show_spinner="Embedding file...")
 def embed_file(file):
     st.write(file)
     file_content = file.read()
@@ -18,9 +21,6 @@ def embed_file(file):
     # st.write(file_content, file_path)
     with open(file_path, "wb") as f:
         f.write(file_content)
-        
-    #여기서부턴 지난 수업내용 copy-paste
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1, callbacks=[LangChainTracer(client=Client())])
 
     # load and split
     splitter = CharacterTextSplitter.from_tiktoken_encoder(
@@ -39,35 +39,69 @@ def embed_file(file):
     )
     vectorstore = Chroma.from_documents(docs, cached_embeddings)
 
-    #각 문서에서 부분 답변을 생성하는 체인
-    map_doc_prompt = ChatPromptTemplate.from_messages([
-        ("system", "Use the following portion of a long document to see if any of the text is relevant to answer the question. Return any relevant text verbatim.\n------\n{portion}"),
-        ("human","{question}")
-    ])
-    map_doc_chain = map_doc_prompt | llm
-
-    #모든 doc에 대해 map_doc_chain을 invoke -> 결과를 하나의 문자열로 만들어서 반환
-    def map_docs(inputs):
-        documents = inputs["documents"]
-        question = inputs["question"]
-        return "\n\n".join(map_doc_chain.invoke({"portion":doc.page_content, "question":question}).content for doc in documents)
-
     #retriever가 가져온 문서들을 map_docs에 넣어 -> 각각의 문서에 대한 답변들을 합해서 하나의 text를 만듦
     retriever = vectorstore.as_retriever()
     return retriever
 
+def save_message(message, role):
+    st.session_state["messages"].append({"message":message, "role":role})
+
+def send_message(message, role, save=True):
+    with st.chat_message(role):
+        st.markdown(message)
+    if save:
+        save_message(message, role)
+
+st.set_page_config(page_title="DocumentGPT", page_icon="📄")
+
+class ChatCallbackHandler(BaseCallbackHandler):
+    message = ""
+    def on_llm_start(self, *args, **kwargs): # can take unlimited arguments(1,2,3,..) and keyword arguments (a=5)
+        self.message_box = st.empty() #빈 위젯을 제공
+    def on_llm_end(self, *args, **kwargs):
+        save_message(self.message, "ai")
+    def on_llm_new_token(self, token:str, *args, **kargs): #token은 LLM이 실시간으로 보내는 메시지. 토큰이 도착할 때마다 message_box에 추가 (화면에 출력됨)
+        self.message += token
+        self.message_box.markdown(self.message)
+
+llm = ChatOpenAI(
+    model="gpt-3.5-turbo", 
+    temperature=0.1, 
+    callbacks=[LangChainTracer(client=Client()), ChatCallbackHandler()],
+    streaming=True #ChatOpenAI는 지원. 다른 llm은 지원 안할 수도 있음.
+)
+
+def paint_history():
+    for message in st.session_state["messages"]:
+        send_message(message["message"], message["role"], save=False)
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "Answer the question using ONLY the following context. If you don't know the answer just say you don't know. DON'T make anything up.\n\nContext: {context}"),
+    ("human", "{question}")
+])
 
 st.title("Documnet GPT")
 
-st.markdown("""
-Welcome!
-            
-Use this chatbot to ask questions to an AI about your files!            
-""")
+st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
-file = st.file_uploader("Upload a .txt .pdf or .docx file", type=["pdf", "txt", "docx"])
+with st.sidebar:
+    file = st.file_uploader("Upload a .txt .pdf or .docx file", type=["pdf", "txt", "docx"])
 
 if file:
     retriever = embed_file(file) #사용자가 뭔가 입력할 때마다 전체 함수가 실행됨 -> embeddings가 cache가 돼있어도 시간이 걸림.
-    s = retriever.invoke("winston")
-    st.write(s)
+
+    send_message("I'm ready! Ask away!", "ai", save=False)
+    paint_history()
+
+    message = st.chat_input("Ask questions about your file...")
+    if message:
+        send_message(message, "human")
+        chain = {"context":retriever | RunnableLambda(format_docs), "question":RunnablePassthrough()} | prompt | llm
+        with st.chat_message("ai"):
+            response = chain.invoke(message)
+
+else:
+    st.session_state["messages"] = [] #파일이 없어지면(유저가 x 클릭) messages를 초기화
