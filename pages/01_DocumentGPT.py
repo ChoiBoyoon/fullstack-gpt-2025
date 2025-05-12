@@ -12,10 +12,13 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.callbacks.base import BaseCallbackHandler
 
+st.set_page_config(page_title="DocumentGPT", page_icon="📄")
+st.title("Documnet GPT")
+st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
-@st.cache_resource(show_spinner="Embedding file...")
+# @st.cache_resource(show_spinner="Embedding file...")
 def embed_file(file):
-    st.write(file)
+    # st.write(file)
     file_content = file.read()
     file_path = f"./.cache/files/{file.name}"
     # st.write(file_content, file_path)
@@ -39,7 +42,6 @@ def embed_file(file):
     )
     vectorstore = Chroma.from_documents(docs, cached_embeddings)
 
-    #retriever가 가져온 문서들을 map_docs에 넣어 -> 각각의 문서에 대한 답변들을 합해서 하나의 text를 만듦
     retriever = vectorstore.as_retriever()
     return retriever
 
@@ -52,17 +54,20 @@ def send_message(message, role, save=True):
     if save:
         save_message(message, role)
 
-st.set_page_config(page_title="DocumentGPT", page_icon="📄")
+def paint_history():
+    for message in st.session_state["messages"]:
+        send_message(message["message"], message["role"], save=False)
 
+#define callback and llm
 class ChatCallbackHandler(BaseCallbackHandler):
     message = ""
     def on_llm_start(self, *args, **kwargs): # can take unlimited arguments(1,2,3,..) and keyword arguments (a=5)
         self.message_box = st.empty() #빈 위젯을 제공
-    def on_llm_end(self, *args, **kwargs):
-        save_message(self.message, "ai")
     def on_llm_new_token(self, token:str, *args, **kargs): #token은 LLM이 실시간으로 보내는 메시지. 토큰이 도착할 때마다 message_box에 추가 (화면에 출력됨)
         self.message += token
         self.message_box.markdown(self.message)
+    def on_llm_end(self, *args, **kwargs):
+        save_message(self.message, "ai")
 
 llm = ChatOpenAI(
     model="gpt-3.5-turbo", 
@@ -71,22 +76,16 @@ llm = ChatOpenAI(
     streaming=True #ChatOpenAI는 지원. 다른 llm은 지원 안할 수도 있음.
 )
 
-def paint_history():
-    for message in st.session_state["messages"]:
-        send_message(message["message"], message["role"], save=False)
 
 def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    return "\n\n".join(doc.page_content for doc in docs) #retriever가 가져온 docs를 하나의 str으로 만듦
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", "Answer the question using ONLY the following context. If you don't know the answer just say you don't know. DON'T make anything up.\n\nContext: {context}"),
     ("human", "{question}")
 ])
 
-st.title("Documnet GPT")
-
-st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
-
+#유저가 파일을 올리면 여기서부터 코드가 시작됨
 with st.sidebar:
     file = st.file_uploader("Upload a .txt .pdf or .docx file", type=["pdf", "txt", "docx"])
 
@@ -94,14 +93,15 @@ if file:
     retriever = embed_file(file) #사용자가 뭔가 입력할 때마다 전체 함수가 실행됨 -> embeddings가 cache가 돼있어도 시간이 걸림.
 
     send_message("I'm ready! Ask away!", "ai", save=False)
-    paint_history()
+    paint_history() #이 라인이 없으면 내가 새로운 질문을 할 때 이전 질문의 내용은 없어짐 (프린트되지 않음)
 
     message = st.chat_input("Ask questions about your file...")
     if message:
         send_message(message, "human")
         chain = {"context":retriever | RunnableLambda(format_docs), "question":RunnablePassthrough()} | prompt | llm
-        with st.chat_message("ai"):
-            response = chain.invoke(message)
+        chain.invoke(message)
+        # with st.chat_message("ai"):
+        #     chain.invoke(message)
 
 else:
-    st.session_state["messages"] = [] #파일이 없어지면(유저가 x 클릭) messages를 초기화
+    st.session_state["messages"] = [] #파일이 아직 안올라왔거나 / 파일이 없어지면(유저가 x 클릭) messages를 초기화
