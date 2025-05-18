@@ -20,7 +20,7 @@ st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your f
 def embed_file(file):
     # st.write(file)
     file_content = file.read()
-    file_path = f"./.cache/files/{file.name}"
+    file_path = f"./.cache/private_files/{file.name}"
     # st.write(file_content, file_path)
     with open(file_path, "wb") as f:
         f.write(file_content)
@@ -35,7 +35,7 @@ def embed_file(file):
     docs=loader.load_and_split(text_splitter=splitter)
 
     #embed, cache, and create vectorstore
-    cache_dir = LocalFileStore(f"./.cache/embeddings/{file.name}") 
+    cache_dir = LocalFileStore(f"./.cache/private_embeddings/{file.name}") 
     embeddings = OpenAIEmbeddings()
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         embeddings, cache_dir
