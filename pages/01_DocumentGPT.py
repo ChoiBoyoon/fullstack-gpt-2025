@@ -105,3 +105,4 @@ if file:
 
 else:
     st.session_state["messages"] = [] #파일이 아직 안올라왔거나 / 파일이 없어지면(유저가 x 클릭) messages를 초기화
+ 

@@ -13,7 +13,7 @@ from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.callbacks.base import BaseCallbackHandler
 
 st.set_page_config(page_title="PrivateGPT", page_icon="📄")
-st.title("Private GPT")
+st.title("Documnet GPT")
 st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
 # @st.cache_resource(show_spinner="Embedding file...")
@@ -35,7 +35,7 @@ def embed_file(file):
     docs=loader.load_and_split(text_splitter=splitter)
 
     #embed, cache, and create vectorstore
-    cache_dir = LocalFileStore(f"./.cache/private_embeddings/{file.name}") 
+    cache_dir = LocalFileStore(f"./.cache/embeddings/{file.name}") 
     embeddings = OpenAIEmbeddings()
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         embeddings, cache_dir
@@ -105,3 +105,4 @@ if file:
 
 else:
     st.session_state["messages"] = [] #파일이 아직 안올라왔거나 / 파일이 없어지면(유저가 x 클릭) messages를 초기화
+ 
