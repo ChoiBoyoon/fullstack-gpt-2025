@@ -3,11 +3,13 @@ from langsmith import Client
 from langchain.callbacks.tracers.langchain import LangChainTracer
 from langchain_openai import ChatOpenAI
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.document_loaders import UnstructuredFileLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
+# from langchain.document_loaders import UnstructuredFileLoader
 from langchain.storage import LocalFileStore
 from langchain_openai import OpenAIEmbeddings
 from langchain.embeddings import CacheBackedEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
+# from langchain.vectorstores import Chroma
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.callbacks.base import BaseCallbackHandler
@@ -70,7 +72,7 @@ class ChatCallbackHandler(BaseCallbackHandler):
         save_message(self.message, "ai")
 
 llm = ChatOpenAI(
-    model="gpt-3.5-turbo", 
+    model="gpt-4o", 
     temperature=0.1, 
     callbacks=[LangChainTracer(client=Client()), ChatCallbackHandler()],
     streaming=True #ChatOpenAI는 지원. 다른 llm은 지원 안할 수도 있음.

@@ -1,11 +1,12 @@
+# Private GPT가 제대로 실행되려면 ollama 서버가 실행중이어야 함
 import streamlit as st
 from langsmith import Client
 from langchain.callbacks.tracers.langchain import LangChainTracer
-from langchain_openai import ChatOllama #instead of ChatOpenAI
+from langchain_ollama import ChatOllama #instead of ChatOpenAI
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.storage import LocalFileStore
-from langchain_openai import OllamaEmbeddings #Instead of OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings #Instead of OpenAIEmbeddings
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.prompts import ChatPromptTemplate
@@ -13,7 +14,7 @@ from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.callbacks.base import BaseCallbackHandler
 
 st.set_page_config(page_title="PrivateGPT", page_icon="📄")
-st.title("Documnet GPT")
+st.title("Private GPT")
 st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
 # @st.cache_resource(show_spinner="Embedding file...")
@@ -37,7 +38,7 @@ def embed_file(file):
     #embed, cache, and create vectorstore
     cache_dir = LocalFileStore(f"./.cache/embeddings/{file.name}") 
     embeddings = OllamaEmbeddings(
-        model="mistral:latest"
+        model="mistral:7b-instruct"
     )
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         embeddings, cache_dir
@@ -72,7 +73,7 @@ class ChatCallbackHandler(BaseCallbackHandler):
         save_message(self.message, "ai")
 
 llm = ChatOllama(
-    model="mistral:latest", 
+    model="mistral:7b-instruct", 
     temperature=0.1, 
     callbacks=[LangChainTracer(client=Client()), ChatCallbackHandler()],
     streaming=True #ChatOpenAI는 지원. 다른 llm은 지원 안할 수도 있음.
@@ -82,9 +83,13 @@ llm = ChatOllama(
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs) #retriever가 가져온 docs를 하나의 str으로 만듦
 
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "Answer the question using ONLY the following context. If you don't know the answer just say you don't know. DON'T make anything up.\n\nContext: {context}"),
-    ("human", "{question}")
+prompt = ChatPromptTemplate.from_template([
+    """Answer the question using ONLY the following context and not your training data. 
+    If you don't know the answer just say you don't know. 
+    DON'T make anything up.
+    Context: {context}
+    Question: {question}
+    """  
 ])
 
 #유저가 파일을 올리면 여기서부터 코드가 시작됨
