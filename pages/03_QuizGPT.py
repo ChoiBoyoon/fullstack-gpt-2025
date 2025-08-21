@@ -186,7 +186,7 @@ def split_file(file):
     return docs
 
 @st.cache_data(show_spinner="Making quiz...")
-def run_quiz_chain(_docs):
+def run_quiz_chain(_docs, topic):
     chain = {"context":questions_chain}|formatting_chain|output_parser
     return chain.invoke(_docs)
     
@@ -223,14 +223,6 @@ if not docs:
         """
     )
 else:
-    start = st.button("Generate Quiz")
-
-    if start:
-        # questions_response = questions_chain.invoke(docs)
-        # st.write(questions_response.content)
-        # formatting_response = formatting_chain.invoke({"context":questions_response.content})
-        # st.write(formatting_response.content)
-
-        q = run_quiz_chain(docs)
-        st.write(q)
+    response = run_quiz_chain(docs, topic if topic else file.name) #if topic exists, it's wiki. if topic doesn't exist, it's file
+    st.write(response)
 
