@@ -224,5 +224,15 @@ if not docs:
     )
 else:
     response = run_quiz_chain(docs, topic if topic else file.name) #if topic exists, it's wiki. if topic doesn't exist, it's file
-    st.write(response)
+    with st.form("questions_form"): #모든 form에는 submit 버튼이 필요
+        for question in response["questions"]:
+            st.write(question["question"])
+            value = st.radio("Select one answer", 
+                     [answer["answer"] for answer in question["answers"]], 
+                     index=None) #no default selection
+            if {"answer":value, "correct":True} in question["answers"]:
+                st.success("Correct")
+            elif value is not None:
+                st.error("Wrong")
+        button = st.form_submit_button()
 
