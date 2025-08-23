@@ -71,7 +71,7 @@ formatting_prompt = ChatPromptTemplate.from_messages([
     Answer: A Roman Emperor(o)| Painter| Actor| Model
     
     ```json
-    {{ "questions": [
+    {{"questions": [
     {{
     "question": "What is the color of the ocean?",
     "answers": [
