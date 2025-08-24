@@ -18,7 +18,7 @@ st.set_page_config(page_title="DocumentGPT", page_icon="📄")
 st.title("Documnet GPT")
 st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
-# @st.cache_resource(show_spinner="Embedding file...")
+@st.cache_resource(show_spinner="Embedding file...")
 def embed_file(file):
     # st.write(file)
     file_content = file.read()

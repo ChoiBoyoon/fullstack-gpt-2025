@@ -13,7 +13,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.callbacks.base import BaseCallbackHandler
 
-st.set_page_config(page_title="PrivateGPT", page_icon="📄")
+st.set_page_config(page_title="PrivateGPT", page_icon="🤫")
 st.title("Private GPT")
 st.markdown("Welcome!\n\nUse this chatbot to ask questions to an AI about your files!\n\nUpload your files in the sidebar")
 
